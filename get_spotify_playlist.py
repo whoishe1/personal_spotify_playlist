@@ -1,11 +1,24 @@
 import pandas as pd
 import spotipy
-from spotipy import util
+import datetime
 import json
 import os
 
+
 class ReturnPlaylist:
+    """Returns Tracks, Artists, and Album of a specified playlists in a pandas/xlsx format
+    
+    Attributes:
+        username: Spotify username
+        scope: Spotify authorization scopes, i.e. 'playlist-read-private'
+        client_id: Spotify client id
+        client_secret: Spotify client secret
+        redirect_url: redirect authorization url 
+
+    """
+
     def __init__(self,username,scope,client_id,client_secret,redirect_uri):
+        """Initialize ReturnPlayList"""
         self.username = username 
         self.scope = scope
         self.client_id = client_id 
@@ -13,10 +26,8 @@ class ReturnPlaylist:
         self.redirect_uri = redirect_uri
 
     def get_token(self):
-        """
-        Set credentials 
-        """
-        token = (util.prompt_for_user_token(
+        """Set credentials """
+        token = (spotipy.util.prompt_for_user_token(
             self.username,
             self.scope,
             self.client_id,
@@ -25,10 +36,14 @@ class ReturnPlaylist:
         return token
 
     def dataframe_tracks(self,tracks):
-        """
-        Helper function get tracklists
+        """ Helper function that retrieves the tracklist in a json format for the specified playlist and outputs it into a pandas dataframe.  Only outputs artists, trackname and album.
+            
+            Arguments:
+                tracks: JSON format of specified playlist.
 
-        @param tracks: json track lists
+            Returns:
+                df: pandas dataframe of specified playlist
+
         """
         track_list_ = []
         artists_ = []
@@ -47,9 +62,13 @@ class ReturnPlaylist:
 
     def get_playlists(self,playlistname):
         """
-        Retrieve a playlist and return in pandas dataframe format
+        Concats playlist into a dataframe.  Spotify has a limit of 100 tracks with their GET request.
 
-        @param playlistname: specific playlist name
+            Args:
+                playlistname: specific playlist name
+            
+            Returns:
+                pl_df: pandas dataframe of specified playlist
         """
         try:
             token = self.get_token()
@@ -67,9 +86,7 @@ class ReturnPlaylist:
                             this_df_n = self.dataframe_tracks(tracks)
                             if len(this_df_n) <= 100:
                                 over_df.append(this_df_n)
-                                continue
-                    else:
-                        continue
+
             if over_df:
                 total_df = pd.concat(over_df)      
                 pl_df = pd.concat([this_df,total_df]).reset_index(drop = True)
@@ -95,8 +112,43 @@ class MyPlaylists(ReturnPlaylist):
             stored_playlists = [value for idx,value in enumerate(playlists['items'])]
             list_playlists = [i['name'] for i in stored_playlists]
         
-        except Except as e:
+        except Exception as e:
             print("Failed to get playlist names because of " + str(e))
 
         return list_playlists
 
+
+#Example
+
+# username = os.environ.get('spotify_user')
+# scope =  'playlist-read-private'
+# client_id = os.environ.get('spotify_id')
+# client_secret = os.environ.get('spotify_secret')
+# redirect_uri = 'https://www.google.com'
+
+# jordans_playlist = MyPlaylists(username,scope,client_id,client_secret,redirect_uri)
+# jordans_playlist.my_playlist()
+
+# subset_pl = ['the five','the three','the two','the one']
+
+# ret_jordans_pl = ReturnPlaylist(username,scope,client_id,client_secret,redirect_uri)
+
+# all = []
+# for i in subset_pl:
+#     pl = ret_jordans_pl.get_playlists(i)
+#     all.append(pl)
+
+# all_pl = pd.concat(all).reset_index(drop = True)
+
+
+# TODAYS_DATE = datetime.date.today().strftime("%Y-%m-%d")
+# desktop = os.path.join(os.path.join(os.environ["USERPROFILE"]), "Desktop")
+# excel_name = "\\spotify_playlists " + TODAYS_DATE + "." + "xlsx"
+# writer = pd.ExcelWriter(desktop + str(excel_name), engine="xlsxwriter")
+# all_pl.to_excel(writer, sheet_name="total_playlist", index=False)
+
+# for idx, item in enumerate(subset_pl):
+#     df = all[idx]
+#     df.to_excel(writer,sheet_name = str(item),index = False)
+
+# writer.save()
